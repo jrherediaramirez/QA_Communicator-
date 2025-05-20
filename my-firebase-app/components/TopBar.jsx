@@ -1,11 +1,16 @@
 // my-firebase-app/components/TopBar.jsx
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { Cog8ToothIcon, MagnifyingGlassIcon, BellIcon } from '@heroicons/react/20/solid';
+import { useRouter } from 'next/router';
+import {
+  Cog8ToothIcon,
+  MagnifyingGlassIcon,
+  BellIcon,
+} from '@heroicons/react/20/solid';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 
+/* ──────────────  Styled components  ────────────── */
 
-// Styled Components Definitions (Keep these as they were from the previous version)
 const NavContainer = styled.nav`
   background-color: #153450;
   height: 60px;
@@ -65,7 +70,8 @@ const StyledNavLink = styled.a`
   &.active {
     background-color: #153450;
     color: white;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1),
+      0 1px 2px 0 rgba(0, 0, 0, 0.06);
   }
 `;
 
@@ -98,9 +104,9 @@ const SettingsButton = styled(BaseIconButton)`
   &:hover {
     background-color: rgba(255, 255, 255, 0.2);
   }
-   &.active {
+  &.active {
     background-color: white;
-    color: white;
+    color: #153450;
   }
 `;
 
@@ -156,11 +162,13 @@ const MobileMenu = styled.div`
   right: 0;
   background-color: #153450;
   padding: 8px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
   z-index: 50;
   display: flex;
   flex-direction: column;
   gap: 4px;
+
   a {
     display: block;
     padding: 10px 12px;
@@ -181,23 +189,30 @@ const MobileMenu = styled.div`
     }
   }
 `;
-// End of Styled Components Definitions
 
+/* ──────────────  Component  ────────────── */
 
 const TopBar = () => {
-  // Updated navLinks and initial activeLink
-  const navLinks = ['Home', 'Batches Entry', 'Search Batches'];
-  const [activeLink, setActiveLink] = useState(navLinks[0]); // Default to 'Home'
+  const router = useRouter();
+
+  const navLinks = [
+    { name: 'Home', path: '/dashboard' },
+    { name: 'Batches Entry', path: '/batches/entry' },
+    { name: 'Search Batches', path: '/batches/search' },
+  ];
+
+  const settingsPath = '/settings';
+  const [activePath, setActivePath] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Settings icon is separate from the main navLinks now
-  const settingsLabel = 'Settings';
+  useEffect(() => {
+    setActivePath(router.pathname);
+  }, [router.pathname]);
 
-  const handleLinkClick = (linkName) => {
-    setActiveLink(linkName);
-    if (isMobileMenuOpen) {
-      setIsMobileMenuOpen(false);
-    }
+  const handleLinkClick = (path) => {
+    setActivePath(path);
+    router.push(path);
+    if (isMobileMenuOpen) setIsMobileMenuOpen(false);
   };
 
   useEffect(() => {
@@ -210,65 +225,81 @@ const TopBar = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [isMobileMenuOpen]);
 
-
   return (
     <NavContainer>
-      <LogoImage src="/warehouse-logo.png" alt="Logo" /> {/* Ensure your logo is in /public folder */}
+      <LogoImage src="/warehouse-logo.png" alt="Logo" />
 
+      {/* Desktop navigation */}
       <DesktopNav>
         <LinksPill>
           {navLinks.map((link) => (
             <StyledNavLink
-              key={link}
-              href="#" // Replace with actual links (e.g., /home, /batches/entry)
-              className={activeLink === link ? 'active' : ''}
-              onClick={() => handleLinkClick(link)}
+              key={link.name}
+              href={link.path}
+              className={activePath === link.path ? 'active' : ''}
+              onClick={(e) => {
+                e.preventDefault();
+                handleLinkClick(link.path);
+              }}
             >
-              {link}
+              {link.name}
             </StyledNavLink>
           ))}
         </LinksPill>
       </DesktopNav>
 
+      {/* Icons */}
       <IconsGroup>
         <SettingsButton
-          className={activeLink === settingsLabel ? 'active' : ''} // Allows settings icon to show 'active' state if needed
-          onClick={() => handleLinkClick(settingsLabel)} // You might want a different action for settings, like opening a modal/dropdown
+          className={activePath === settingsPath ? 'active' : ''}
+          onClick={() => handleLinkClick(settingsPath)}
           aria-label="Settings"
         >
           <Cog8ToothIcon />
         </SettingsButton>
+
         <SearchButton aria-label="Search">
           <MagnifyingGlassIcon />
         </SearchButton>
+
         <NotificationButton aria-label="Notifications">
           <BellIcon />
         </NotificationButton>
 
-        <MobileMenuToggle onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+        <MobileMenuToggle
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          aria-label="Toggle Menu"
+        >
           {isMobileMenuOpen ? <XMarkIcon /> : <Bars3Icon />}
         </MobileMenuToggle>
       </IconsGroup>
 
+      {/* Mobile navigation */}
       {isMobileMenuOpen && (
         <MobileMenu>
           {navLinks.map((link) => (
             <a
-              key={link}
-              href="#" // Replace with actual links
-              className={activeLink === link ? 'active' : ''}
-              onClick={() => handleLinkClick(link)}
+              key={link.name}
+              href={link.path}
+              className={activePath === link.path ? 'active' : ''}
+              onClick={(e) => {
+                e.preventDefault();
+                handleLinkClick(link.path);
+              }}
             >
-              {link}
+              {link.name}
             </a>
           ))}
-          {/* Settings link for mobile menu, if desired */}
+
           <a
-            href="#" // Replace with actual link or action for settings
-            className={activeLink === settingsLabel ? 'active' : ''}
-            onClick={() => handleLinkClick(settingsLabel)}
+            href={settingsPath}
+            className={activePath === settingsPath ? 'active' : ''}
+            onClick={(e) => {
+              e.preventDefault();
+              handleLinkClick(settingsPath);
+            }}
           >
-            {settingsLabel}
+            Settings
           </a>
         </MobileMenu>
       )}
