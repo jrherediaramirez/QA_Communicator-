@@ -1,13 +1,13 @@
+// my-firebase-app/pages/index.jsx
 import Link from 'next/link';
 import { useAuth } from '../context/AuthContext';
 
 export default function HomePage() {
-  const { authUser, firestoreUser, loading, logout } = useAuth(); // Use specific user objects or combined user
+  const { authUser, firestoreUser, loading, logout } = useAuth();
 
-  if (loading && !authUser) { // Show loading only on initial load when no authUser is present yet.
-                              // If authUser is present but firestoreUser is loading, dashboard will handle specific message.
-    return <p>Loading...</p>;
-  }
+  // `loading` here is from AuthContext. If true, _app.jsx's GlobalLoader is shown.
+  // So, when this component's content renders, `loading` should be false.
+  // The check `if (loading && !authUser)` is likely redundant.
 
   return (
     <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>

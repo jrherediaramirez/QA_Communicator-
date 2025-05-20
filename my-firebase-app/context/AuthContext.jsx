@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from '../lib/firebase'; // Import db
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc, onSnapshot } from 'firebase/firestore'; // Firestore functions
+import { doc, onSnapshot } from 'firebase/firestore'; // Firestore functions
 
 const AuthContext = createContext();
 
@@ -12,74 +12,67 @@ export function useAuth() {
 export function AuthProvider({ children }) {
   const [authUser, setAuthUser] = useState(null); // Firebase auth user object
   const [firestoreUser, setFirestoreUser] = useState(null); // Custom user data from Firestore
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Start with loading true for initial auth check
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
-      setLoading(true);
+      setLoading(true); // Set loading true at the start of an auth state change
+      let userSnapshotUnsubscribe = () => {}; // To store Firestore listener unsubscribe function
+
       if (user) {
         setAuthUser(user);
-        // Fetch user data from Firestore
         const userDocRef = doc(db, "users", user.uid);
-        // Use onSnapshot to listen for real-time updates to user data (e.g., role changes by admin)
-        const unsubscribeSnapshot = onSnapshot(userDocRef, (docSnap) => {
+        userSnapshotUnsubscribe = onSnapshot(userDocRef, (docSnap) => {
           if (docSnap.exists()) {
             setFirestoreUser({ uid: docSnap.id, ...docSnap.data() });
           } else {
-            // This case might happen if Firestore doc creation failed or was delayed
-            // Or if a user exists in Auth but not in Firestore (e.g. imported users)
             console.warn("User document not found in Firestore for UID:", user.uid);
-            setFirestoreUser(null); // Or handle as an error/incomplete profile
+            setFirestoreUser(null); // Explicitly set to null if not found
           }
-          setLoading(false);
+          setLoading(false); // setLoading(false) *after* Firestore attempt
         }, (error) => {
           console.error("Error fetching user document from Firestore:", error);
           setFirestoreUser(null);
-          setLoading(false);
+          setLoading(false); // setLoading(false) on Firestore error
         });
-        // Store snapshot unsubscribe function to call it on cleanup
-        return () => {
-            unsubscribeSnapshot();
-            setLoading(false);
-        }
       } else {
         setAuthUser(null);
         setFirestoreUser(null);
-        setLoading(false);
+        setLoading(false); // setLoading(false) when user is logged out
       }
+
+      // This cleanup function is for the effect triggered by onAuthStateChanged.
+      // It will call the Firestore listener's unsubscribe function for the *previous* state.
+      return () => {
+        userSnapshotUnsubscribe();
+      };
     });
 
-    // Cleanup subscription on unmount
+    // This cleans up the onAuthStateChanged listener when AuthProvider unmounts
     return () => {
-        unsubscribeAuth();
-        setLoading(false); // Ensure loading is false on unmount
-    }
-  }, []);
+      unsubscribeAuth();
+    };
+  }, []); // Empty dependency array ensures this effect runs once on mount and cleans up on unmount
 
   const logout = async () => {
-    setLoading(true);
     try {
       await signOut(auth);
-      // Auth state change will be caught by onAuthStateChanged, which will clear users
+      // onAuthStateChanged will handle setting authUser, firestoreUser to null and loading to false.
     } catch (error) {
       console.error("Failed to log out:", error);
-    } finally {
-        // No need to setLoading(false) here if onAuthStateChanged handles it.
-        // However, if there's an error before signOut completes, onAuthStateChanged might not trigger immediately.
-        // For safety, or if you want immediate UI feedback for logout button.
-        // but onAuthStateChanged is preferred for consistency.
+      // If signOut fails, the auth state likely hasn't changed, so onAuthStateChanged won't fire.
+      // Consider if specific error handling or UI feedback is needed here.
     }
   };
 
   const value = {
-    authUser,       // The raw Firebase Auth user object (contains email, uid, emailVerified, etc.)
-    firestoreUser,  // Custom data from Firestore (firstName, lastName, role, workId, etc.)
-    user: authUser ? { ...authUser, ...firestoreUser } : null, // A combined user object for convenience
+    authUser,
+    firestoreUser,
+    user: authUser ? { ...authUser, ...firestoreUser } : null,
     loading,
     logout,
   };
 
-  // Only render children when initial loading is complete to avoid flashes of incorrect content
   return (
     <AuthContext.Provider value={value}>
       {children}

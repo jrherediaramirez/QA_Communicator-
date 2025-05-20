@@ -1,19 +1,27 @@
 // my-firebase-app/pages/_app.jsx
-import { AuthProvider, useAuth } from '../context/AuthContext'; // Import useAuth
+import { AuthProvider, useAuth } from '../context/AuthContext';
 import TopBar from '../components/TopBar';
 // import '../styles/globals.css'; // Ensure your global styles (if any, not Tailwind) are imported
 
-// Inner component to access auth context for TopBar visibility
+// Global loading component (can be styled further)
+function GlobalLoader() {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      <p>Loading application...</p>
+    </div>
+  );
+}
+
 function AppContent({ Component, pageProps }) {
   const { authUser, firestoreUser, loading } = useAuth();
 
-  // Determine if the TopBar should be shown
-  // Show if:
-  // 1. Not loading authentication state
-  // 2. User is authenticated (authUser exists)
-  // 3. Firestore user data is loaded (firestoreUser exists)
-  // 4. User role is not 'pending_approval'
-  const showTopBar = !loading && authUser && firestoreUser && firestoreUser.role !== 'pending_approval';
+  // If initial auth check is loading, show a global loader for the whole page.
+  if (loading) {
+    return <GlobalLoader />;
+  }
+
+  // Determine if the TopBar should be shown *after* loading is complete.
+  const showTopBar = authUser && firestoreUser && firestoreUser.role !== 'pending_approval';
 
   return (
     <>

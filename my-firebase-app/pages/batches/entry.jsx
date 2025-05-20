@@ -3,29 +3,50 @@ import { useRouter } from 'next/router';
 import { useEffect } from 'react';
 
 export default function BatchEntryPage() {
-  const { authUser, firestoreUser, loading } = useAuth();
+  const { authUser, firestoreUser, loading: authContextLoading } = useAuth();
   const router = useRouter();
 
-  // Protect the page with authentication
   useEffect(() => {
-    if (!loading && (!authUser || !firestoreUser)) {
-      router.push('/signin');
-    } else if (!loading && firestoreUser && firestoreUser.role === 'pending_approval') {
-      router.push('/dashboard');
+    if (!authContextLoading) {
+      if (!authUser) {
+        router.push('/signin');
+      } else if (firestoreUser && firestoreUser.role === 'pending_approval') {
+        router.push('/dashboard'); // Redirect pending users
+      } else if (authUser && !firestoreUser) {
+        // Handle case where authUser exists but firestoreUser is null after loading
+        console.warn("BatchEntryPage: Firestore user details not found. Redirecting to dashboard.");
+        router.push('/dashboard');
+      }
     }
-  }, [authUser, firestoreUser, loading, router]);
+  }, [authUser, firestoreUser, authContextLoading, router]);
 
-  if (loading) return <p>Loading...</p>;
-  if (!authUser || !firestoreUser) return <p>Please sign in to access this page</p>;
-  if (firestoreUser.role === 'pending_approval') return <p>Your account is pending approval</p>;
+  // If authContextLoading is true, _app.jsx shows GlobalLoader.
+  // If redirecting, the component might unmount or show a brief message.
+  if (authContextLoading) {
+    return null; // Or a minimal page-specific loader if preferred over _app.jsx's only
+  }
 
+  if (!authUser) {
+    return <p>Redirecting to sign in...</p>;
+  }
+
+  if (!firestoreUser) {
+    return <p>User details not found. Access to this page is restricted.</p>;
+  }
+
+  if (firestoreUser.role === 'pending_approval') {
+    // This message is shown if redirection is not immediate or if user navigates here directly.
+    return <p>Your account is pending approval. Access to this page is restricted.</p>;
+  }
+
+  // Page content for authorized and approved users
   return (
     <div style={{ padding: '20px' }}>
       <h1>Batch Entry</h1>
       <p>This is where users can enter new batch information.</p>
       
-      {/* Simple form placeholder */}
       <form style={{ marginTop: '20px' }}>
+        {/* ... form elements ... */}
         <div style={{ marginBottom: '15px' }}>
           <label htmlFor="batchId" style={{ display: 'block', marginBottom: '5px' }}>
             Batch ID:
